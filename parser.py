@@ -17,7 +17,7 @@ def parse_head(html):
     today = parse_today_from_parse_head(soup_head)
     group_and_sem = soup_head.find(lambda tag: len(tag.attrs) == 2).text.split()
     group = group_and_sem[1]
-    sem = group_and_sem[2]
+    sem = int(group_and_sem[2])
     return today, group, sem 
 
 def main():
