@@ -9,19 +9,20 @@ def get_html(URL):
 def parse_today_from_parse_head(soup):
     MONTHS = ("января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря")
     t_a_w = soup.find("em").text.split()
-    return (int(t_a_w[1]), MONTHS.index(t_a_w[2]) + 1, int(t_a_w[3][:-1]), int(t_a_w[6]))
+    return ((int(t_a_w[1]), MONTHS.index(t_a_w[2]) + 1, int(t_a_w[3][:-1])), int(t_a_w[6]))
 
 def parse_head(html):
     soup = BeautifulSoup(html, "lxml")
     soup_head = soup.find("table").find("table")
+    today = parse_today_from_parse_head(soup_head)
     group_and_sem = soup_head.find(lambda tag: len(tag.attrs) == 2).text.split()
     group = group_and_sem[1]
     sem = group_and_sem[2]
-    
+    return today, group, sem 
 
 def main():
     html = get_html(URL)
-    parse_head(html)
+    print(parse_head(html))
 
 if __name__ == '__main__':
     main()
