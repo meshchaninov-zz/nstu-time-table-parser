@@ -1,5 +1,7 @@
 from bs4 import BeautifulSoup
 import requests
+import re
+import codecs
 
 URL = "https://ciu.nstu.ru/student/time_table_view?idgroup=25554&fk_timetable=36218&nomenu=1&print=1"
 
@@ -25,12 +27,16 @@ def parse_head(html):
 
 #TODO: next level!
 def parse_body(html):
-    pass
+    soup = BeautifulSoup(html, "lxml")
+    soup_body = soup.findAll("tr")[5:]
+    table = [re.sub(r"^\s+|\n|\xa0|$\s+",'', i.text) for i in soup_body]
+    table = [re.split(r"\s\s+", i) for i in table]
+    print(table)
     
 
 def main():
     html = get_html(URL)
-    print(parse_head(html))
+    print(parse_body(html))
 
 if __name__ == '__main__':
     main()
