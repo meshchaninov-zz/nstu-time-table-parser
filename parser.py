@@ -1,4 +1,4 @@
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 import requests
 import re
 import codecs
@@ -28,11 +28,33 @@ def parse_head(html):
 #TODO: next level!
 def parse_body(html):
     soup = BeautifulSoup(html, "lxml")
-    soup_body = soup.findAll("tr")[5:]
+    soup_body = soup.findAll("td")[10:]
     table = [re.sub(r"^\s+|\n|\xa0|$\s+",'', i.text) for i in soup_body]
-    table = [re.split(r"\s\s+", i) for i in table]
-    print(table)
-    
+    WEEK = ("Понедельник", "Вторник","Среда", "Четверг", "Пятница", "Суббота", "Воскресенье")
+    EVEN_AND_NOT_EVEN = ("Ч", "Н")
+    result = []
+    day = []
+    line = []
+    num = 0
+    for text in table:
+        text = text.strip()
+        if text in WEEK:
+            result.append(day)
+            day = []
+            day.append(text)
+            continue
+        if line == [] and text in EVEN_AND_NOT_EVEN:
+            line.append(day[-1][0])
+            num+=1
+        line.append(text)
+        num+=1
+        if num >= 4:
+            day.append(line)
+            line = []
+            num = 0
+    result.append(day)
+    result.pop(0)
+    return result
 
 def main():
     html = get_html(URL)
