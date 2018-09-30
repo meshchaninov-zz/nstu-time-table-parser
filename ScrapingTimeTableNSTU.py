@@ -65,6 +65,7 @@ class ScrapingTimeTableNSTU:
         line = []
         num = -1
         for text in table:
+            if type(text) == type(list):
             text = text.strip()
             if text in WEEK: #Если встретилось слово из недели, то достиг конец предедущего дня (исключение - Понедельник)
                 result.append(day)
@@ -76,7 +77,7 @@ class ScrapingTimeTableNSTU:
                 num+=1
             line.append(text)
             num+=1
-            if num >= 4: #Четыре подряд элемента образуют строку в исходной таблице
+            if num >= 5: #Пять подряд элемента образуют строку в исходной таблице
                 day.append(line)
                 line = []
                 num = 0
@@ -94,14 +95,32 @@ class ScrapingTimeTableNSTU:
     def get_body(self):
         """
         Принимает soup из bs4
-        Возвращает само расписание в виде [[день недели [время, Ч/Н, предмет, кабинет],[...],[...]]...]
+        Возвращает само расписание в виде [[день недели [время, Ч/Н, предмет,[(ФИО преподов и сайт),(...)] кабинет],[...],[...]]...]
         """
         try:
             soup_body = self.soup.findAll("td")[10:]
         except AttributeError:
             print("Не удалось создать парсер")
             return None
-        table = [re.sub(r"^\s+|\n|\xa0|$\s+",'', i.text) for i in soup_body]
+        table = []
+        regex_strip = r"^\s+|\n|\xa0|;|$\s" #regex выражение поиска всех пробельных знаков
+        num = 0
+        for text in soup_body:
+            href = text.findAll("a") #Если есть ссылки, значит, это ссылки преподов
+            if href != []: #Тогда обрабатываем ссылки и втавляем их
+                table.append(re.sub(regex_strip, '', text.contents[0]))
+                table.append([(x.text, self._get_full_url_person(x["href"])) for x in href])
+                continue
+            text = re.sub(regex_strip,'', text.text)  #Убираем лишние пробельные знаки
+            text = text.strip()
+            if text == '': #Так как не во всех строчках есть ссылки преподов, для баланса(5 str на строчку) добаляем пустую
+                table.append(text)
+                num+=1
+                if num >= 3:
+                    table.append('')
+                    num = 0
+                continue
+            table.append(text)
         return self._structed_output_from_get_body(table)
 
 def main():
