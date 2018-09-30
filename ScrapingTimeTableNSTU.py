@@ -14,6 +14,7 @@ class ScrapingTimeTableNSTU:
         except TypeError:
             print("Не могу подключиться к интернету")
             self.soup = None
+        self.global_domen = "ciu.nstu.ru"
             
 
     def _get_html(self, URL):
@@ -82,6 +83,13 @@ class ScrapingTimeTableNSTU:
         result.append(day)
         result[0].insert(0,result[0][0].pop(0)) #Перестановка слова "Понедельник" за пределы вложеного списка (Фуух, оптимизация епт)
         return result
+
+    def _get_full_url_person(self, url):
+        """
+        Так как в исходной таблице ссылки не полные, приходится их дополнять
+        Принимает не полный url
+        """
+        return self.global_domen+url
 
     def get_body(self):
         """
