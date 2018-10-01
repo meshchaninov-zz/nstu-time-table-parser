@@ -37,14 +37,14 @@ class ScrapingTimeTableNSTU:
     def __init__(self, url, parser="lxml"):
         self.url = url
         try:
-            self.soup = BeautifulSoup(self._get_html(self.url), parser)
+            self.__soup = BeautifulSoup(self.__get_html(self.url), parser)
         except TypeError:
             print("Не могу подключиться к интернету")
-            self.soup = None
-        self.global_domen = "ciu.nstu.ru"
+            self.__soup = None
+        self.global_domain = "ciu.nstu.ru"
             
 
-    def _get_html(self, URL):
+    def __get_html(self, URL):
         """
         Возвращает html страницу по ссылке
         """
@@ -54,7 +54,7 @@ class ScrapingTimeTableNSTU:
             html = None
         return html
 
-    def _parse_today_from_get_head(self, soup):
+    def __parse_today_from_get_head(self, soup):
         """
         Вспопмогательная функция для get_head
         Принимает на вход soup из bs4, возвращает полный вид даты
@@ -70,17 +70,17 @@ class ScrapingTimeTableNSTU:
         Возвращает (полный вид дня, номер недели, группа, семестр)
         """
         try:
-            soup_head = self.soup.find("table").find("table")
+            soup_head = self.__soup.find("table").find("table")
         except AttributeError:
             print("Не удалось создать парсер")
             return None
-        today = self._parse_today_from_get_head(soup_head)
+        today = self.__parse_today_from_get_head(soup_head)
         group_and_sem = soup_head.find(lambda tag: len(tag.attrs) == 2).text.split()
         group = group_and_sem[1]
         sem = int(group_and_sem[2])
         return today[0], today[1], group, sem
 
-    def _structed_output_from_get_body(self, table):
+    def __structed_output_from_get_body(self, table):
         """
         Вспомогательная функция
         Принимает на вход кашу из get_body и приводит её в человеческий вид
@@ -93,7 +93,7 @@ class ScrapingTimeTableNSTU:
         num = -1
         for text in table:
             if type(text) == type(list):
-            text = text.strip()
+                text = text.strip()
             if text in WEEK: #Если встретилось слово из недели, то достиг конец предедущего дня (исключение - Понедельник)
                 result.append(day)
                 day = []
@@ -112,12 +112,12 @@ class ScrapingTimeTableNSTU:
         result[0].insert(0,result[0][0].pop(0)) #Перестановка слова "Понедельник" за пределы вложеного списка (Фуух, оптимизация епт)
         return result
 
-    def _get_full_url_person(self, url):
+    def __get_full_url_person(self, url):
         """
         Так как в исходной таблице ссылки не полные, приходится их дополнять
         Принимает не полный url
         """
-        return self.global_domen+url
+        return self.global_domain+url
 
     def get_body(self):
         """
@@ -125,7 +125,7 @@ class ScrapingTimeTableNSTU:
         Возвращает само расписание в виде [[день недели [время, Ч/Н, предмет,[(ФИО преподов и сайт),(...)] кабинет],[...],[...]]...]
         """
         try:
-            soup_body = self.soup.findAll("td")[10:]
+            soup_body = self.__soup.findAll("td")[10:]
         except AttributeError:
             print("Не удалось создать парсер")
             return None
@@ -136,7 +136,7 @@ class ScrapingTimeTableNSTU:
             href = text.findAll("a") #Если есть ссылки, значит, это ссылки преподов
             if href != []: #Тогда обрабатываем ссылки и втавляем их
                 table.append(re.sub(regex_strip, '', text.contents[0]))
-                table.append([(x.text, self._get_full_url_person(x["href"])) for x in href])
+                table.append([(x.text, self.__get_full_url_person(x["href"])) for x in href])
                 continue
             text = re.sub(regex_strip,'', text.text)  #Убираем лишние пробельные знаки
             text = text.strip()
@@ -148,7 +148,7 @@ class ScrapingTimeTableNSTU:
                     num = 0
                 continue
             table.append(text)
-        return self._structed_output_from_get_body(table)
+        return self.__structed_output_from_get_body(table)
 
 def main():
     """
