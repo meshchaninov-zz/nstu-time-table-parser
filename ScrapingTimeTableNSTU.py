@@ -1,4 +1,5 @@
 from bs4 import BeautifulSoup
+import json
 import requests
 import re
 
@@ -80,6 +81,7 @@ class ScrapingTimeTableNSTU:
         sem = int(group_and_sem[2])
         return today[0], today[1], group, sem
 
+    #TODO: num поменять 
     def __structed_output_from_get_body(self, table):
         """
         Вспомогательная функция
@@ -104,7 +106,7 @@ class ScrapingTimeTableNSTU:
                 num+=1
             line.append(text)
             num+=1
-            if num >= 5: #Пять подряд элемента образуют строку в исходной таблице
+            if num >= 4: #Пять подряд элемента образуют строку в исходной таблице
                 day.append(line)
                 line = []
                 num = 0
@@ -119,6 +121,7 @@ class ScrapingTimeTableNSTU:
         """
         return self.global_domain+url
 
+    #BUG: разобраться с лишними пустыми строками
     def get_body(self):
         """
         Принимает soup из bs4
@@ -130,33 +133,103 @@ class ScrapingTimeTableNSTU:
             print("Не удалось создать парсер")
             return None
         table = []
-        regex_strip = r"^\s+|\n|\xa0|;|$\s" #regex выражение поиска всех пробельных знаков
+        regex_strip = r"^\s+|\n|\xa0|;|$\s" #regex выражение поиска всех пробельных знаков 
         num = 0
         for text in soup_body:
-            href = text.findAll("a") #Если есть ссылки, значит, это ссылки преподов
-            if href != []: #Тогда обрабатываем ссылки и втавляем их
-                table.append(re.sub(regex_strip, '', text.contents[0]))
-                table.append([(x.text, self.__get_full_url_person(x["href"])) for x in href])
-                continue
+            # href = text.findAll("a") #Если есть ссылки, значит, это ссылки преподов
+            # if href != []: #Тогда обрабатываем ссылки и втавляем их
+            #     table.append(re.sub(regex_strip, '', text.contents[0]))
+            #     table.append([(x.text, self.__get_full_url_person(x["href"])) for x in href])
+            #     continue
             text = re.sub(regex_strip,'', text.text)  #Убираем лишние пробельные знаки
             text = text.strip()
-            if text == '': #Так как не во всех строчках есть ссылки преподов, для баланса(5 str на строчку) добаляем пустую
-                table.append(text)
-                num+=1
-                if num >= 3:
-                    table.append('')
-                    num = 0
-                continue
+            # if text == '': #Так как не во всех строчках есть ссылки преподов, для баланса(5 str на строчку) добаляем пустую
+            #     table.append(text)
+            #     num+=1
+            #     if num >= 3:
+            #         table.append('')
+            #         num = 0
+            #     continue
+            # else:
+            #     num = 0
             table.append(text)
         return self.__structed_output_from_get_body(table)
+
+class JsonTimeTableNSTU(ScrapingTimeTableNSTU):
+    def __init__(self, url, parser="lxml"):
+        self.__status = None #Получилось ли получить раписание
+        self.__WEEK = ("Ч", "Н", "Л") #константы для определения четной/нечетной/любой недели
+        try:
+            super().__init__(url, parser)
+            self.status = "OK"
+        except:
+            self.status = "ERROR"
+    
+    def __split_time(self, time):
+        """
+        разделяет промежуток времени на две строки
+        П: "8:30 - 10:00" -> "8:30", "10:00"
+        """
+        return time.split("-")
+    
+    def __date_to_ISO_format(self, date):
+        """
+        Переводит дату в соответситвии с ISO 8601 (YYYY-MM-DD)
+        Принимает картеж (D, M, Y), переводит в строку "YYYY-MM-DD"
+        П: (2,9,2018) -> "2018-09-02"
+        """
+        return "{2:04d}-{1:02d}-{0:02d}".format(date[0],date[1],date[2])
+
+    #TODO: Сделать объяснение
+    def __to_json_lecturers(self, lecturers):
+        return [{"name": x[0], "URL": x[1]} for x in lecturers[3]]
+
+    #TODO: Сделать объяснение
+    #TODO: lecturers допилить
+    def __to_json_day(self, day):
+        beg_end_time = self.__split_time(day[0])
+        return {
+                    "begin": beg_end_time[0],
+                    "end": beg_end_time[1],
+                    "week": day[1],
+                    "lesson": day[2],
+                    "lecturers": '',
+                    "cabinet number": day[3]
+                }
+        
+    #TODO: Сделать пояснение
+    def __to_json_week(self, week):
+        return {week[0]: [self.__to_json_day(day) for day in week[1:]]}
+
+    #TODO: Сделать пояснение
+    def __to_json_time_table(self, time_table):
+        return [self.__to_json_week(x) for x in time_table]
+
+    #TODO: Сделать пояснение
+    #BUG: Не работает русский язык
+    def fullJson(self):
+        head = self.get_head()
+        body = self.get_body()
+        return json.dumps(
+            {
+                "date": self.__date_to_ISO_format(head[0]),
+                "week number": head[1],
+                "group": head[2],
+                "semestr": head[3],
+                "time table": self.__to_json_time_table(body)
+            }
+        )
+
 
 def main():
     """
     Мини тесты
     """
     URL = "https://ciu.nstu.ru/student/time_table_view?idgroup=25554&fk_timetable=36218&nomenu=1&print=1"
-    sttn = ScrapingTimeTableNSTU(URL)
-    print(sttn.get_body())
+    # sttn = ScrapingTimeTableNSTU(URL)
+    # print(sttn.get_body())
+    with open("test.txt", "w") as f:
+        f.write(JsonTimeTableNSTU(URL).fullJson())
 
 if __name__ == '__main__':
     main()
