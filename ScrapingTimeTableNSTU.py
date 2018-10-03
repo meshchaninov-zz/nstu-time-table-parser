@@ -81,39 +81,6 @@ class ScrapingTimeTableNSTU:
         sem = int(group_and_sem[2])
         return today[0], today[1], group, sem
 
-    #TODO: num поменять 
-    def __structed_output_from_get_body(self, table):
-        """
-        Вспомогательная функция
-        Принимает на вход кашу из get_body и приводит её в человеческий вид
-        """
-        WEEK = ("Вторник","Среда", "Четверг", "Пятница", "Суббота")
-        EVEN_AND_NOT_EVEN = ("Ч", "Н")
-        result = []
-        day = []
-        line = []
-        num = -1
-        for text in table:
-            if type(text) == type(list):
-                text = text.strip()
-            if text in WEEK: #Если встретилось слово из недели, то достиг конец предедущего дня (исключение - Понедельник)
-                result.append(day)
-                day = []
-                day.append(text)
-                continue
-            if line == [] and text in EVEN_AND_NOT_EVEN:   #Если встретилась Ч или Н, но без времени, то вот
-                line.append(day[-1][0])
-                num+=1
-            line.append(text)
-            num+=1
-            if num >= 4: #Пять подряд элемента образуют строку в исходной таблице
-                day.append(line)
-                line = []
-                num = 0
-        result.append(day)
-        result[0].insert(0,result[0][0].pop(0)) #Перестановка слова "Понедельник" за пределы вложеного списка (Фуух, оптимизация епт)
-        return result
-
     def __get_full_url_person(self, url):
         """
         Так как в исходной таблице ссылки не полные, приходится их дополнять
@@ -121,39 +88,33 @@ class ScrapingTimeTableNSTU:
         """
         return self.global_domain+url
 
-    #BUG: разобраться с лишними пустыми строками
+    def __del_excess_whitesapce(self, string):
+        return re.sub(r"^\s+|\n|\xa0|$\s+", '', string)
+
+    def __soup_to_href_and_name(self, soup):
+        hrefs = [(href.text, self.__get_full_url_person(href["href"])) for href in soup.findAll("a")]
+        name = self.__del_excess_whitesapce(soup.text.split(";")[0])
+        return [name, hrefs]
+        
+    def __soup_line_to_structure(self, soup_line):
+        soup_line[2] = self.__soup_to_href_and_name(soup_line[2])
+        return list(map(lambda x: self.__del_excess_whitesapce(x.text) if type(x) != list else x, soup_line))
+
+        
     def get_body(self):
         """
         Принимает soup из bs4
         Возвращает само расписание в виде [[день недели [время, Ч/Н, предмет,[(ФИО преподов и сайт),(...)] кабинет],[...],[...]]...]
         """
         try:
-            soup_body = self.__soup.findAll("td")[10:]
+            soup_body = self.__soup.findAll("tr")[5:]
         except AttributeError:
             print("Не удалось создать парсер")
             return None
-        table = []
-        regex_strip = r"^\s+|\n|\xa0|;|$\s" #regex выражение поиска всех пробельных знаков 
-        num = 0
-        for text in soup_body:
-            # href = text.findAll("a") #Если есть ссылки, значит, это ссылки преподов
-            # if href != []: #Тогда обрабатываем ссылки и втавляем их
-            #     table.append(re.sub(regex_strip, '', text.contents[0]))
-            #     table.append([(x.text, self.__get_full_url_person(x["href"])) for x in href])
-            #     continue
-            text = re.sub(regex_strip,'', text.text)  #Убираем лишние пробельные знаки
-            text = text.strip()
-            # if text == '': #Так как не во всех строчках есть ссылки преподов, для баланса(5 str на строчку) добаляем пустую
-            #     table.append(text)
-            #     num+=1
-            #     if num >= 3:
-            #         table.append('')
-            #         num = 0
-            #     continue
-            # else:
-            #     num = 0
-            table.append(text)
-        return self.__structed_output_from_get_body(table)
+        all_lines = map(lambda x: x.findAll("td"), soup_body)
+        all_lines = filter(lambda x: len(x) != 1, all_lines)
+        all_lines = list(map(lambda x: self.__soup_line_to_structure(x), all_lines))
+        return all_lines
 
 class JsonTimeTableNSTU(ScrapingTimeTableNSTU):
     def __init__(self, url, parser="lxml"):
@@ -228,8 +189,9 @@ def main():
     URL = "https://ciu.nstu.ru/student/time_table_view?idgroup=25554&fk_timetable=36218&nomenu=1&print=1"
     # sttn = ScrapingTimeTableNSTU(URL)
     # print(sttn.get_body())
-    with open("test.txt", "w") as f:
-        f.write(JsonTimeTableNSTU(URL).fullJson())
+    print(JsonTimeTableNSTU(URL).get_head())
+    # with open("test.txt", "w") as f:
+    #     f.write(JsonTimeTableNSTU(URL).fullJson())
 
 if __name__ == '__main__':
     main()
