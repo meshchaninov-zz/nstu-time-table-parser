@@ -37,6 +37,7 @@ class ScrapingTimeTableNSTU:
     """
     def __init__(self, url, parser="lxml"):
         self.url = url
+        self.LESSONS_PER_DAY = 7
         try:
             self.__soup = BeautifulSoup(self.__get_html(self.url), parser)
         except TypeError:
@@ -64,7 +65,6 @@ class ScrapingTimeTableNSTU:
         t_a_w = soup.find("em").text.split()
         return (int(t_a_w[1]), MONTHS.index(t_a_w[2]) + 1, int(t_a_w[3][:-1])), int(t_a_w[6])
 
-
     def get_head(self):
         """
         Принимает soup из bs4
@@ -88,19 +88,26 @@ class ScrapingTimeTableNSTU:
         """
         return self.global_domain+url
 
+    #TODO: добавить описание
+    def __n_elements_to_one_list(self, line, n):
+        return [line[n*k:n*(k+1)] for k in range(len(line) // n)]
+
+    #TODO: описание
     def __del_excess_whitesapce(self, string):
         return re.sub(r"^\s+|\n|\xa0|$\s+", '', string)
 
+    #TODO: описание
     def __soup_to_href_and_name(self, soup):
         hrefs = [(href.text, self.__get_full_url_person(href["href"])) for href in soup.findAll("a")]
         name = self.__del_excess_whitesapce(soup.text.split(";")[0])
         return [name, hrefs]
         
+    #TODO: описание
     def __soup_line_to_structure(self, soup_line):
         soup_line[2] = self.__soup_to_href_and_name(soup_line[2])
         return list(map(lambda x: self.__del_excess_whitesapce(x.text) if type(x) != list else x, soup_line))
 
-        
+    #TODO: описание изменить
     def get_body(self):
         """
         Принимает soup из bs4
@@ -114,9 +121,12 @@ class ScrapingTimeTableNSTU:
         all_lines = map(lambda x: x.findAll("td"), soup_body)
         all_lines = filter(lambda x: len(x) != 1, all_lines)
         all_lines = list(map(lambda x: self.__soup_line_to_structure(x), all_lines))
+        all_lines = self.__n_elements_to_one_list(all_lines, self.LESSONS_PER_DAY)
         return all_lines
 
+#TODO: полное описание
 class JsonTimeTableNSTU(ScrapingTimeTableNSTU):
+    #TODO: status не нужен
     def __init__(self, url, parser="lxml"):
         self.__status = None #Получилось ли получить раписание
         self.__WEEK = ("Ч", "Н", "Л") #константы для определения четной/нечетной/любой недели
@@ -143,24 +153,23 @@ class JsonTimeTableNSTU(ScrapingTimeTableNSTU):
 
     #TODO: Сделать объяснение
     def __to_json_lecturers(self, lecturers):
-        return [{"name": x[0], "URL": x[1]} for x in lecturers[3]]
+        return [{"name": x[0], "URL": x[1]} for x in lecturers]
 
     #TODO: Сделать объяснение
-    #TODO: lecturers допилить
     def __to_json_day(self, day):
         beg_end_time = self.__split_time(day[0])
         return {
                     "begin": beg_end_time[0],
                     "end": beg_end_time[1],
                     "week": day[1],
-                    "lesson": day[2],
-                    "lecturers": '',
+                    "lesson": day[2][0],
+                    "lecturers": self.__to_json_lecturers(day[2][1]),
                     "cabinet number": day[3]
                 }
         
     #TODO: Сделать пояснение
     def __to_json_week(self, week):
-        return {week[0]: [self.__to_json_day(day) for day in week[1:]]}
+        return [self.__to_json_day(day) for day in week]
 
     #TODO: Сделать пояснение
     def __to_json_time_table(self, time_table):
@@ -189,7 +198,9 @@ def main():
     URL = "https://ciu.nstu.ru/student/time_table_view?idgroup=25554&fk_timetable=36218&nomenu=1&print=1"
     # sttn = ScrapingTimeTableNSTU(URL)
     # print(sttn.get_body())
-    print(JsonTimeTableNSTU(URL).get_head())
+    jttn = JsonTimeTableNSTU(URL)
+    d = jttn.get_body()
+    print(jttn.fullJson())
     # with open("test.txt", "w") as f:
     #     f.write(JsonTimeTableNSTU(URL).fullJson())
 
