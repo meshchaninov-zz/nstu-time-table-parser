@@ -156,25 +156,25 @@ class JsonTimeTableNSTU(ScrapingTimeTableNSTU):
         return [{"name": x[0], "URL": x[1]} for x in lecturers]
 
     #TODO: Сделать объяснение
-    def __to_json_day(self, day):
-        beg_end_time = self.__split_time(day[0])
+    def __to_json_line(self, line):
+        beg_end_time = self.__split_time(line[0])
         return {
                     "begin": beg_end_time[0],
                     "end": beg_end_time[1],
-                    "week": day[1],
-                    "lesson": day[2][0],
-                    "lecturers": self.__to_json_lecturers(day[2][1]),
-                    "cabinet number": day[3]
+                    "week": line[1],
+                    "lesson": line[2][0],
+                    "lecturers": self.__to_json_lecturers(line[2][1]),
+                    "cabinet number": line[3]
                 }
         
     #TODO: Сделать пояснение
-    def __to_json_week(self, week):
-        return [self.__to_json_day(day) for day in week]
+    def __to_json_day(self, days):
+        return [self.__to_json_line(day) for day in days]
 
     #TODO: Сделать пояснение
     def __to_json_week(self, time_table):
         WEEKDAY = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
-        return dict(zip(WEEKDAY, [self.__to_json_week(x) for x in time_table]))
+        return dict(zip(WEEKDAY, [self.__to_json_day(x) for x in time_table]))
 
     #TODO: Сделать пояснение
     #BUG: Не работает русский язык
@@ -199,7 +199,7 @@ def main():
     URL = "https://ciu.nstu.ru/student/time_table_view?idgroup=25554&fk_timetable=36218&nomenu=1&print=1"
     # sttn = ScrapingTimeTableNSTU(URL)
     # print(sttn.get_body())
-    jttn = JsonTimeTableNSTU(URL)
+    jttn = JsonTimeTableNSTU("https://ciu.nstu.ru/student/time_table_view?idgroup=25343&fk_timetable=36000&nomenu=1&print=1")
     d = jttn.get_body()
     print(jttn.fullJson())
     # with open("test.txt", "w") as f:
