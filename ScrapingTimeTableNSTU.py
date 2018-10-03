@@ -172,8 +172,9 @@ class JsonTimeTableNSTU(ScrapingTimeTableNSTU):
         return [self.__to_json_day(day) for day in week]
 
     #TODO: Сделать пояснение
-    def __to_json_time_table(self, time_table):
-        return [self.__to_json_week(x) for x in time_table]
+    def __to_json_week(self, time_table):
+        WEEKDAY = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+        return dict(zip(WEEKDAY, [self.__to_json_week(x) for x in time_table]))
 
     #TODO: Сделать пояснение
     #BUG: Не работает русский язык
@@ -185,8 +186,8 @@ class JsonTimeTableNSTU(ScrapingTimeTableNSTU):
                 "date": self.__date_to_ISO_format(head[0]),
                 "week number": head[1],
                 "group": head[2],
-                "semestr": head[3],
-                "time table": self.__to_json_time_table(body)
+                "semester": head[3],
+                "time table": self.__to_json_week(body)
             }
         )
 
